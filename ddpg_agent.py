@@ -9,23 +9,29 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
+BUFFER_SIZE = int(1e5)  # replay buffer size
+BATCH_SIZE = 128      # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
-LR_ACTOR = 5e-4         # learning rate of the actor 
-LR_CRITIC = 5e-4        # learning rate of the critic
+LR_ACTOR = 2e-4         # learning rate of the actor
+LR_CRITIC = 2e-4        # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
 EPSILON = 1             # noise level for the purpose of exploration
 EPSILON_DECAY = 1e-6    # noise level decay
-LEARN_EVERY = 1         # network update interval    
-LEARN_NUM = 1           # number of network updates
+#LEARN_EVERY = 1        # network update interval    
+#LEARN_NUM = 1          # number of network updates
+LEARN_EVERY = 20        # network update interval    
+LEARN_NUM = 10          # number of network updates
+
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
+
     """Interacts with and learns from the environment."""
-    
-    def __init__(self, state_size, action_size, actor_local, actor_target, critic_local, critic_target, replay_buffer,
-             BATCH_SIZE, random_seed):
+    def __init__(self, state_size, action_size, random_seed):
+
         """Initialize an Agent object.
         
         Params
@@ -38,31 +44,30 @@ class Agent():
         self.action_size = action_size
         self.seed = random.seed(random_seed)
         self.epsilon = EPSILON
-        self.batch_size = BATCH_SIZE
 
         # Actor Network (w/ Target Network)
-        self.actor_local = actor_local.to(device)
-        self.actor_target = actor_target.to(device)
+        self.actor_local = Actor(state_size, action_size, random_seed).to(device)
+        self.actor_target = Actor(state_size, action_size, random_seed).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=LR_ACTOR)
 
         # Critic Network (w/ Target Network)
-        self.critic_local = critic_local.to(device)
-        self.critic_target = critic_target.to(device)
+        self.critic_local = Critic(state_size, action_size, random_seed).to(device)
+        self.critic_target = Critic(state_size, action_size, random_seed).to(device)
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
         # Noise process
         self.noise = OUNoise(action_size, random_seed)
 
         # Replay memory
-        self.memory = replay_buffer
-    
-    def step(self, state, action, reward, next_state, done, timestep):
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed) 
+        
+    def step(self, state, action, reward, next_state, done, timestep, is_learn_step):
         """Save experience in replay memory, and use random sample from buffer to learn."""
         # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
-        if len(self.memory) > self.batch_size and timestep % LEARN_EVERY == 0:
+        if len(self.memory) > BATCH_SIZE and timestep % LEARN_EVERY == 0 and is_learn_step:
             for k in range(LEARN_NUM):
                 experiences = self.memory.sample()
             self.learn(experiences, GAMMA)
@@ -143,7 +148,7 @@ class Agent():
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.1):
+    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.01):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
