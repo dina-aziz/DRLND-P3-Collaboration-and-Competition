@@ -9,19 +9,15 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 128      # minibatch size
+BUFFER_SIZE = int(2e5)  # replay buffer size
+BATCH_SIZE = 256        # minibatch size
 GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
+TAU = 2e-3              # for soft update of target parameters
 LR_ACTOR = 2e-4         # learning rate of the actor
-LR_CRITIC = 2e-4        # learning rate of the critic
+LR_CRITIC = 3e-3        # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
 EPSILON = 1             # noise level for the purpose of exploration
-EPSILON_DECAY = 1e-6    # noise level decay
-#LEARN_EVERY = 1        # network update interval    
-#LEARN_NUM = 1          # number of network updates
-LEARN_EVERY = 20        # network update interval    
-LEARN_NUM = 10          # number of network updates
+EPSILON_DECAY = 0       # noise level decay
 
 
 
@@ -61,15 +57,15 @@ class Agent():
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed) 
         
-    def step(self, state, action, reward, next_state, done, timestep, is_learn_step):
+    def mem_append(self, state, action, reward, next_state, done):
         """Save experience in replay memory, and use random sample from buffer to learn."""
         # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
-
+        
+    def step(self):
         # Learn, if enough samples are available in memory
-        if len(self.memory) > BATCH_SIZE and timestep % LEARN_EVERY == 0 and is_learn_step:
-            for k in range(LEARN_NUM):
-                experiences = self.memory.sample()
+        if len(self.memory) > BATCH_SIZE:
+            experiences = self.memory.sample()
             self.learn(experiences, GAMMA)
 
     def act(self, state, add_noise=True):
@@ -122,7 +118,6 @@ class Agent():
         # Minimize the loss
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
-        torch.nn.utils.clip_grad_norm(self.actor_local.parameters(),1)
         self.actor_optimizer.step()
 
         # ----------------------- update target networks ----------------------- #
@@ -130,7 +125,7 @@ class Agent():
         self.soft_update(self.actor_local, self.actor_target, TAU)   
         
         self.epsilon -= EPSILON_DECAY
-        self.noise.reset()
+        #self.noise.reset()
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.
