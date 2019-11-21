@@ -12,7 +12,7 @@ def hidden_init(layer):
 class Actor(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size, action_size, seed, fc1_units=512, fc2_units=256):
+    def __init__(self, state_size, action_size, seed, fc1_units=512, fc2_units=400):
         """Initialize parameters and build model.
         Params
         ======
@@ -27,9 +27,6 @@ class Actor(nn.Module):
         self.fc1 = nn.Linear(state_size, fc1_units)
         self.fc2 = nn.Linear(fc1_units, fc2_units)
         self.fc3 = nn.Linear(fc2_units, action_size)
-        self.bn1 = nn.BatchNorm1d(state_size)
-        self.bn2 = nn.BatchNorm1d(fc1_units)
-        self.bn3 = nn.BatchNorm1d(fc2_units)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -39,18 +36,15 @@ class Actor(nn.Module):
 
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""
-        x = self.bn1(state)
-        x = F.relu(self.bn2(self.fc1(x)))
-        x = F.relu(self.bn3(self.fc2(x)))
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
         return F.tanh(self.fc3(x))
-
-
 
 
 class Critic(nn.Module):
     """Critic (Value) Model."""
 
-    def __init__(self, state_size, action_size, seed, fcs1_units=512, fc2_units=256):
+    def __init__(self, state_size, action_size, seed, fcs1_units=512, fc2_units=400):
         """Initialize parameters and build model.
         Params
         ======
@@ -65,9 +59,6 @@ class Critic(nn.Module):
         self.fcs1 = nn.Linear(state_size, fcs1_units)
         self.fc2 = nn.Linear(fcs1_units+action_size, fc2_units)
         self.fc3 = nn.Linear(fc2_units, 1)
-        self.bn1 = nn.BatchNorm1d(state_size)
-        self.bn2 = nn.BatchNorm1d(fcs1_units)
-        self.bn3 = nn.BatchNorm1d(fc2_units)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -77,9 +68,7 @@ class Critic(nn.Module):
 
     def forward(self, state, action):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""
-        x = self.bn1(state)
-        xs = F.relu(self.bn2(self.fcs1(x)))
+        xs = F.relu(self.fcs1(state))
         x = torch.cat((xs, action), dim=1)
-        x = F.relu(self.bn3(self.fc2(x)))
-        x = self.fc3(x)
-        return x
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
