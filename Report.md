@@ -1,5 +1,5 @@
 [image1]: training.PNG "training"
-[image2]: average_scores_plot.png "plot"
+[image2]: average_scores_plot.PNG "plot"
 # Project 2: Continuous Control  
     
 ## **Introduction**
